@@ -5,7 +5,7 @@ import pandas as pd
 # 1. SETUP IDENTITAS (PASTIKAN ID SHEET BENAR)
 # ==========================================
 # Ganti kode di bawah dengan ID Google Sheets Anda
-SHEET_ID = 1-FhaAsVlrYUnn0tbC-ccwMMZIS7RKZ57lDho5yLBtI8
+SHEET_ID = '1-FhaAsVlrYUnn0tbC-ccwMMZIS7RKZ57lDho5yLBtI8'
 
 def read_sheet(sheet_name):
     # Nama sheet harus persis sama dengan yang ada di Google Sheets
