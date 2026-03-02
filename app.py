@@ -40,7 +40,6 @@ if menu == "📸 Koleksi Foto":
     except Exception as e:
         st.error(f"Koneksi Google Sheets bermasalah atau nama tab salah.")
 
-# --- MENU 2: ESTIMASI BIAYA (FIXED) ---
 # --- MENU 2: ESTIMASI BIAYA ---
 elif menu == "💰 Estimasi Biaya":
     st.title("💰 Estimasi Kebutuhan & Biaya")
@@ -48,50 +47,46 @@ elif menu == "💰 Estimasi Biaya":
         df_biaya = read_sheet('Estimasi Biaya')
         df_biaya.columns = df_biaya.columns.str.strip()
 
-        # FUNGSI MEMBERSIHKAN ANGKA (Agar tidak jadi 0)
+        # FUNGSI MEMBERSIHKAN & FORMATTING
         def clean_number(value):
             if pd.isna(value) or value == '': return 0
-            # Hapus Rp, titik, dan spasi
             s = str(value).replace('Rp', '').replace('.', '').replace(',', '').strip()
             try:
                 return float(s)
             except:
                 return 0
 
-        # Terapkan pembersihan ke kolom harga
+        # Fungsi format rupiah dengan titik (1.000.000)
+        def format_rupiah(val):
+            return f"Rp {val:,.0f}".replace(',', '.')
+
         col_total = 'Total Harga (Rp)'
         col_satuan = 'Harga Satuan (Rp)'
         
+        # 1. Bersihkan data asli untuk perhitungan
         if col_total in df_biaya.columns:
             df_biaya[col_total] = df_biaya[col_total].apply(clean_number)
         if col_satuan in df_biaya.columns:
             df_biaya[col_satuan] = df_biaya[col_satuan].apply(clean_number)
         
-        # Hitung Total Keseluruhan untuk Metrik
+        # 2. Hitung total untuk metrik (Headline atas)
         total_biaya = df_biaya[col_total].sum()
-        
-        # Tampilan Metrik dengan format ribuan titik
-        st.metric("Total Anggaran Keseluruhan", f"Rp {total_biaya:,.0f}".replace(',', '.'))
+        st.metric("Total Anggaran Keseluruhan", format_rupiah(total_biaya))
         st.markdown("---")
 
-        # TAMPILKAN TABEL DENGAN FORMAT TITIK RIBUAN
-        kolom_target = ['No', 'Kategori', 'Nama Barang', 'Merk/Ukuran', 'Total Pemakaian', 'Satuan', 'Harga Satuan (Rp)', 'Total Harga (Rp)']
-        cols_to_show = [c for c in kolom_target if c in df_biaya.columns]
+        # 3. Buat kolom bayangan khusus tampilan (Teks yang sudah bertitik)
+        df_display = df_biaya.copy()
+        df_display['Harga Satuan'] = df_display[col_satuan].apply(format_rupiah)
+        df_display['Total Harga'] = df_display[col_total].apply(format_rupiah)
+
+        # 4. Tentukan kolom yang mau ditampilkan (pilih kolom bayangan yang baru dibuat)
+        kolom_target = ['No', 'Kategori', 'Nama Barang', 'Merk/Ukuran', 'Total Pemakaian', 'Satuan', 'Harga Satuan', 'Total Harga']
+        cols_to_show = [c for c in kolom_target if c in df_display.columns]
         
         st.dataframe(
-            df_biaya[cols_to_show], 
+            df_display[cols_to_show], 
             use_container_width=True, 
-            hide_index=True,
-            column_config={
-                "Harga Satuan (Rp)": st.column_config.NumberColumn(
-                    "Harga Satuan (Rp)",
-                    format="Rp %d", # Ini akan memberikan pemisah ribuan otomatis
-                ),
-                "Total Harga (Rp)": st.column_config.NumberColumn(
-                    "Total Harga (Rp)",
-                    format="Rp %d", # Ini akan memberikan pemisah ribuan otomatis
-                )
-            }
+            hide_index=True
         )
         
     except Exception as e:
