@@ -1,100 +1,107 @@
 import streamlit as st
-import sqlite3
 import pandas as pd
 
-st.set_page_config(page_title="Riset Kapal Nelayan ITS", layout="wide", page_icon="🚢")
+# ==========================================
+# 1. SETUP IDENTITAS (PASTIKAN ID SHEET BENAR)
+# ==========================================
+# Ganti kode di bawah dengan ID Google Sheets Anda
+SHEET_ID = 1-FhaAsVlrYUnn0tbC-ccwMMZIS7RKZ57lDho5yLBtI8
 
-# Custom CSS untuk tampilan lebih profesional
+def read_sheet(sheet_name):
+    # Nama sheet harus persis sama dengan yang ada di Google Sheets
+    sheet_name_fixed = sheet_name.replace(" ", "%20")
+    url = f'https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet={sheet_name_fixed}'
+    return pd.read_csv(url)
+
+# Konfigurasi Tampilan
+st.set_page_config(page_title="R&D Riset Kapal ITS", layout="wide", page_icon="🚢")
+
+# Custom CSS untuk mempercantik tampilan
 st.markdown("""
     <style>
-    .main { background-color: #f5f7f9; }
+    .main { background-color: #f8f9fa; }
     .stMetric { background-color: #ffffff; padding: 15px; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
     </style>
     """, unsafe_allow_html=True)
 
-def load_sql_data(query):
-    conn = sqlite3.connect('database.db')
-    data = pd.read_sql(query, conn)
-    conn.close()
-    return data
+# ==========================================
+# 2. SIDEBAR NAVIGASI
+# ==========================================
+st.sidebar.title("⚓ R&D Dashboard")
+menu = st.sidebar.radio("Pilih Menu:", ["📸 Koleksi Foto", "💰 Estimasi Biaya", "📁 Dokumen Penting"])
 
-# Sidebar
-st.sidebar.image("https://upload.wikimedia.org/wikipedia/id/0/00/Logo_ITS.png", width=100)
-st.sidebar.title("R&D Navigasi")
-menu = st.sidebar.selectbox("Pilih Menu:", 
-    ["🏠 Dashboard", "📸 Koleksi Foto Kegiatan", "📊 Timeline Progress Project", "💰 Estimasi Part & Consumable", "📁 Dokumen Penting"])
-
-if menu == "🏠 Dashboard":
-    st.title("⚓ Dashboard Riset Kapal Nelayan 8 GT")
-    st.write("Sistem Monitoring Terpadu: Foto Kegiatan, Dokumen Kerjasama, dan Estimasi Kebutuhan Part.")
-    
-    col1, col2, col3 = st.columns(3)
-    col1.metric("Status Proyek", "Fabrikasi")
-    col2.metric("Lokasi", "ITS Surabaya")
-    col3.metric("Target", "Mock-Up 8 GT")
-    
-    st.image("https://images.unsplash.com/photo-1544216717-3bbf52512659?q=80&w=2070&auto=format&fit=crop", caption="Proses Fabrikasi Kapal Baja")
-
-elif menu == "📸 Koleksi Foto Kegiatan":
+# --- MENU 1: KOLEKSI FOTO ---
+if menu == "Koleksi Foto":
     st.title("📸 Koleksi Foto Kegiatan")
-    bulan_opt = st.radio("Pilih Periode:", ["November", "Desember"], horizontal=True)
+    st.write("Daftar dokumentasi kegiatan per tanggal.")
     
-    df = load_sql_data(f"SELECT * FROM riset_utama WHERE bulan = '{bulan_opt}' ORDER BY tanggal DESC")
-    
-    if df.empty:
-        st.warning(f"Belum ada data kegiatan untuk bulan {bulan_opt}")
-    else:
-        for _, row in df.iterrows():
-            with st.container():
-                st.subheader(f"📅 {row['tanggal']} - {row['judul_kegiatan']}")
-                st.write(f"ℹ️ {row['keterangan']}")
-                st.link_button(f"📁 Buka Folder Foto {row['tanggal']}", row['link_folder_foto'])
-                st.divider()
+    try:
+        df_foto = read_sheet('Foto Kegiatan')
+        
+        # Pilihan Bulan
+        bulan_pilihan = st.radio("Pilih Bulan:", [11, 12], 
+                                 format_func=lambda x: "November" if x==11 else "Desember", 
+                                 horizontal=True)
+        
+        # Filter Data
+        filtered_foto = df_foto[df_foto['Bulan'] == bulan_pilihan]
+        
+        if filtered_foto.empty:
+            st.warning(f"Data untuk bulan ini belum tersedia.")
+        else:
+            for _, row in filtered_foto.iterrows():
+                with st.container():
+                    col1, col2 = st.columns([1, 4])
+                    # Headline Tanggal
+                    col1.subheader(f"🗓️ Tgl {int(row['Tanggal'])}")
+                    with col2:
+                        st.info(f"Keterangan: {row['Keterangan'] if pd.notna(row['Keterangan']) else 'Tidak ada keterangan'}")
+                        st.link_button(f"👉 Lihat Foto Kegiatan", row['Link Folder Gdrive'])
+                    st.divider()
+    except Exception as e:
+        st.error(f"Gagal memuat data Foto: {e}")
 
-elif menu == "📊 Timeline Progress Project":
-    st.title("📊 Timeline & Progress Project")
-    st.info("STEEL FISHING VESSEL 8 GT MOCK UP FABRICATION TIMELINE")
-    
-    # Ringkasan dari Excel Timeline yang anda kirim
-    st.write("### Ringkasan Jadwal Fabrikasi")
-    data_timeline = {
-        "Main Activity": ["Marking & Cutting", "Assembling Bottom", "Assembling Side Shell", "Deck Construction", "Painting"],
-        "Bulan": ["November", "November-Desember", "Desember", "Desember-Januari", "Januari"],
-        "Status": ["Selesai", "In-Progress", "In-Progress", "Planned", "Planned"]
-    }
-    st.table(pd.DataFrame(data_timeline))
-    st.success("Capaian Kumulatif: Sesuai dengan Target Rencana")
-
-elif menu == "💰 Estimasi Part & Consumable":
+# --- MENU 2: ESTIMASI BIAYA ---
+elif menu == "Estimasi Biaya":
     st.title("💰 Estimasi Kebutuhan & Biaya")
-    st.write("Berdasarkan Estimasi Kebutuhan Consumable & Part Riset Kapal")
     
-    # Ringkasan Biaya dari Excel Anda
-    t1, t2, t3 = st.tabs(["⚙️ Parts & Elektrik", "👨‍🏭 Fabrikasi & Las", "🎨 Pengecatan"])
-    
-    with t1:
-        st.subheader("Kategori Parts & Elektrik")
-        st.write("**Total Estimasi: Rp 72.428.000**")
-        st.write("- Mesin Honda BF20 (20 HP)\n- Sistem Kemudi\n- Sistem Navigasi Radio (Icom M220)\n- GPS & Pompa")
+    try:
+        df_biaya = read_sheet('Estimasi Biaya')
         
-    with t2:
-        st.subheader("Kategori Fabrikasi & Pengelasan")
-        st.write("**Total Estimasi: Rp 21.837.250**")
-        st.write("- Batu Gerinda Poles & Potong (WD)\n- Kawat Las FCAW & CHE 58-1\n- Wire Brush & Amplas Susun")
-        
-    with t3:
-        st.subheader("Kategori Pengecatan")
-        st.write("**Total Estimasi: Rp 14.921.500**")
-        st.write("- Cat Primer Epoxy White\n- Top Coat Acrylic Grey (Jotun Pioneer)\n- Thinner & Alat Cat (Kuas/Roll)")
+        # Bersihkan data (hapus baris kosong jika ada)
+        df_biaya = df_biaya.dropna(subset=['Nama Barang'])
 
-elif menu == "📁 Dokumen Penting":
+        # Dashboard Metrik
+        total_anggaran = df_biaya['Total Harga (Rp)'].sum()
+        st.metric("Total Estimasi Anggaran Proyek", f"Rp {total_anggaran:,.0f}")
+        
+        # Filter Kategori
+        list_kategori = df_biaya['Kategori'].unique()
+        pilihan_kat = st.multiselect("Filter Kategori:", list_kategori, default=list_kategori)
+        
+        df_display = df_biaya[df_biaya['Kategori'].isin(pilihan_kat)]
+        
+        # Tampilkan Tabel
+        st.dataframe(df_display, use_container_width=True, hide_index=True)
+        
+    except Exception as e:
+        st.error(f"Gagal memuat data Biaya: {e}")
+
+# --- MENU 3: DOKUMEN PENTING ---
+elif menu == "Dokumen Penting":
     st.title("📁 Dokumen Kerjasama & Internal")
-    df_doc = load_sql_data("SELECT * FROM dokumen_penting")
     
-    for _, row in df_doc.iterrows():
-        with st.container():
-            col_a, col_b = st.columns([0.8, 0.2])
-            col_a.write(f"**{row['nama_dokumen']}**")
-            col_a.caption(f"Kategori: {row['kategori']}")
-            col_b.link_button("Buka Folder", row['link_unduh'])
-            st.divider()
+    try:
+        df_doc = read_sheet('Dokumen Penting')
+        
+        for _, row in df_doc.iterrows():
+            with st.expander(f"📄 {row['Nama Dokumen']}"):
+                st.write(f"**Instansi/Kegiatan:** {row['Kegiatan']}")
+                st.link_button("Buka Folder Dokumen", row['Link Unduh'])
+                
+    except Exception as e:
+        st.error(f"Gagal memuat data Dokumen: {e}")
+
+# Footer
+st.sidebar.markdown("---")
+st.sidebar.caption("R&D Riset Kapal Nelayan 8GT ITS © 2024")
