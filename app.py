@@ -9,9 +9,9 @@ def read_sheet(sheet_name):
     sheet_name_url = sheet_name.replace(" ", "%20")
     url = f'https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet={sheet_name_url}'
     df = pd.read_csv(url)
-    # Hapus kolom yang benar-benar kosong saja, jangan hapus kolom bernama
+    # Hapus kolom yang benar-benar kosong
     df = df.dropna(axis=1, how='all')
-    # Hapus baris kosong
+    # Hapus baris kosong berdasarkan kolom ke-2 dan ke-3
     df = df.dropna(subset=[df.columns[1], df.columns[2]], how='all')
     return df
 
@@ -47,7 +47,7 @@ elif menu == "💰 Estimasi Biaya":
         df_biaya = read_sheet('Estimasi Biaya')
         df_biaya.columns = df_biaya.columns.str.strip()
 
-        # FUNGSI MEMBERSIHKAN & FORMATTING
+        # FUNGSI MEMBERSIHKAN ANGKA
         def clean_number(value):
             if pd.isna(value) or value == '': return 0
             s = str(value).replace('Rp', '').replace('.', '').replace(',', '').strip()
@@ -56,72 +56,47 @@ elif menu == "💰 Estimasi Biaya":
             except:
                 return 0
 
-        # Fungsi format rupiah dengan titik (1.000.000)
-        def format_rupiah(val):
-            return f"Rp {val:,.0f}".replace(',', '.')
-
         col_total = 'Total Harga (Rp)'
         col_satuan = 'Harga Satuan (Rp)'
         
-        # 1. Bersihkan data asli untuk perhitungan
         if col_total in df_biaya.columns:
             df_biaya[col_total] = df_biaya[col_total].apply(clean_number)
         if col_satuan in df_biaya.columns:
             df_biaya[col_satuan] = df_biaya[col_satuan].apply(clean_number)
         
-        # 2. Hitung total untuk metrik (Headline atas)
+        # Headline Metrik
         total_biaya = df_biaya[col_total].sum()
-        st.metric("Total Anggaran Keseluruhan", format_rupiah(total_biaya))
+        st.metric("Total Anggaran Keseluruhan", f"Rp {total_biaya:,.0f}".replace(',', '.'))
         st.markdown("---")
 
-        # 3. Buat kolom bayangan khusus tampilan (Teks yang sudah bertitik)
-        df_display = df_biaya.copy()
-        df_display['Harga Satuan'] = df_display[col_satuan].apply(format_rupiah)
-        df_display['Total Harga'] = df_display[col_total].apply(format_rupiah)
-
-        # 4. Tentukan kolom yang mau ditampilkan
-        kolom_target = ['No', 'Kategori', 'Nama Barang', 'Merk/Ukuran', 'Total Pemakaian', 'Satuan', 'Harga Satuan', 'Total Harga']
-        cols_to_show = [c for c in kolom_target if c in df_display.columns]
+        # Tentukan kolom yang mau ditampilkan
+        kolom_target = ['No', 'Kategori', 'Nama Barang', 'Merk/Ukuran', 'Total Pemakaian', 'Satuan', 'Harga Satuan (Rp)', 'Total Harga (Rp)']
+        cols_to_show = [c for c in kolom_target if c in df_biaya.columns]
         
+        # TAMPILAN TABEL RATA KANAN & TITIK RIBUAN
         st.dataframe(
-            df_display[cols_to_show], 
-            use_container_width=True, 
-            hide_index=True,
-            column_config={
-                # Membuat kolom Harga Satuan rata kanan
-                "Harga Satuan": st.column_config.TextColumn(
-                    "Harga Satuan (Rp)",
-                    help="Harga per satuan barang",
-                    width="medium",
-                ),
-                # Membuat kolom Total Harga rata kanan
-                "Total Harga": st.column_config.TextColumn(
-                    "Total Harga (Rp)",
-                    help="Total harga setelah dikali pemakaian",
-                    width="medium",
-                ),
-                "No": st.column_config.Column(width="small"),
-                "Total Pemakaian": st.column_config.Column(width="small"),
-            }
-        )
-        
-st.dataframe(
-            df_biaya[cols_to_show], # Menggunakan df_biaya asli yang isinya angka
+            df_biaya[cols_to_show], 
             use_container_width=True, 
             hide_index=True,
             column_config={
                 "Harga Satuan (Rp)": st.column_config.NumberColumn(
                     "Harga Satuan (Rp)",
                     format="Rp %d",
-                    locale="id-ID", # MEMAKSA FORMAT INDONESIA (TITIK & RATA KANAN)
+                    locale="id-ID",
                 ),
                 "Total Harga (Rp)": st.column_config.NumberColumn(
                     "Total Harga (Rp)",
                     format="Rp %d",
-                    locale="id-ID", # MEMAKSA FORMAT INDONESIA (TITIK & RATA KANAN)
-                )
+                    locale="id-ID",
+                ),
+                "No": st.column_config.Column(width="small"),
+                "Total Pemakaian": st.column_config.Column(width="small"),
             }
         )
+        
+    except Exception as e:
+        st.error(f"Terjadi kesalahan di menu Biaya: {e}")
+
 # --- MENU 3: DOKUMEN PENTING ---
 elif menu == "📁 Dokumen Penting":
     st.title("📁 Dokumen Penting")
