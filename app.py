@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 
 # 1. SETUP IDENTITAS (PASTIKAN ID SHEET BENAR)
-SHEET_ID = 'MASUKKAN_ID_GOOGLE_SHEET_ANDA_DI_SINI'
+SHEET_ID = '1-FhaAsVlrYUnn0tbC-ccwMMZIS7RKZ57lDho5yLBtI8'
 
 def read_sheet(sheet_name):
     # Mengonversi nama sheet ke format URL (spasi jadi %20)
