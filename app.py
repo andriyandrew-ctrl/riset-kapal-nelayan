@@ -41,28 +41,41 @@ if menu == "📸 Koleksi Foto":
         st.error(f"Koneksi Google Sheets bermasalah atau nama tab salah.")
 
 # --- MENU 2: ESTIMASI BIAYA (FIXED) ---
+# --- MENU 2: ESTIMASI BIAYA ---
 elif menu == "💰 Estimasi Biaya":
     st.title("💰 Estimasi Kebutuhan & Biaya")
     try:
         df_biaya = read_sheet('Estimasi Biaya')
-        
-        # Bersihkan nama kolom dari spasi berlebih (Sering jadi penyebab Error)
         df_biaya.columns = df_biaya.columns.str.strip()
 
-        # Konversi kolom harga ke angka secara paksa
+        # FUNGSI MEMBERSIHKAN ANGKA (Agar tidak jadi 0)
+        def clean_number(value):
+            if pd.isna(value) or value == '': return 0
+            # Hapus Rp, titik, dan spasi
+            s = str(value).replace('Rp', '').replace('.', '').replace(',', '').strip()
+            try:
+                return float(s)
+            except:
+                return 0
+
+        # Terapkan pembersihan ke kolom harga
         col_total = 'Total Harga (Rp)'
+        col_satuan = 'Harga Satuan (Rp)'
+        
         if col_total in df_biaya.columns:
-            df_biaya[col_total] = pd.to_numeric(df_biaya[col_total].astype(str).str.replace('.', '').str.replace(',', ''), errors='coerce').fillna(0)
+            df_biaya[col_total] = df_biaya[col_total].apply(clean_number)
+        if col_satuan in df_biaya.columns:
+            df_biaya[col_satuan] = df_biaya[col_satuan].apply(clean_number)
         
-        # Metrik Atas
-        total_biaya = df_biaya[col_total].sum() if col_total in df_biaya.columns else 0
-        st.metric("Total Anggaran Keseluruhan", f"Rp {total_biaya:,.0f}")
+        # Hitung Total Keseluruhan untuk Metrik
+        total_biaya = df_biaya[col_total].sum()
         
-        # Menampilkan Tabel Utama
-        # Kita definisikan kolom yang ingin ditampilkan agar rapi
+        # Tampilan Metrik dengan format ribuan titik
+        st.metric("Total Anggaran Keseluruhan", f"Rp {total_biaya:,.0f}".replace(',', '.'))
+        st.markdown("---")
+
+        # TAMPILKAN TABEL DENGAN FORMAT TITIK RIBUAN
         kolom_target = ['No', 'Kategori', 'Nama Barang', 'Merk/Ukuran', 'Total Pemakaian', 'Satuan', 'Harga Satuan (Rp)', 'Total Harga (Rp)']
-        
-        # Filter kolom yang benar-benar ada di sheet
         cols_to_show = [c for c in kolom_target if c in df_biaya.columns]
         
         st.dataframe(
@@ -70,13 +83,19 @@ elif menu == "💰 Estimasi Biaya":
             use_container_width=True, 
             hide_index=True,
             column_config={
-                "Harga Satuan (Rp)": st.column_config.NumberColumn(format="Rp %d"),
-                "Total Harga (Rp)": st.column_config.NumberColumn(format="Rp %d")
+                "Harga Satuan (Rp)": st.column_config.NumberColumn(
+                    "Harga Satuan (Rp)",
+                    format="Rp %d", # Ini akan memberikan pemisah ribuan otomatis
+                ),
+                "Total Harga (Rp)": st.column_config.NumberColumn(
+                    "Total Harga (Rp)",
+                    format="Rp %d", # Ini akan memberikan pemisah ribuan otomatis
+                )
             }
         )
         
     except Exception as e:
-        st.error(f"Detail Error: {e}")
+        st.error(f"Terjadi kesalahan: {e}")
 
 # --- MENU 3: DOKUMEN PENTING ---
 elif menu == "📁 Dokumen Penting":
