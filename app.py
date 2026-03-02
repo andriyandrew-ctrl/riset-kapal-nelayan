@@ -79,19 +79,49 @@ elif menu == "💰 Estimasi Biaya":
         df_display['Harga Satuan'] = df_display[col_satuan].apply(format_rupiah)
         df_display['Total Harga'] = df_display[col_total].apply(format_rupiah)
 
-        # 4. Tentukan kolom yang mau ditampilkan (pilih kolom bayangan yang baru dibuat)
+        # 4. Tentukan kolom yang mau ditampilkan
         kolom_target = ['No', 'Kategori', 'Nama Barang', 'Merk/Ukuran', 'Total Pemakaian', 'Satuan', 'Harga Satuan', 'Total Harga']
         cols_to_show = [c for c in kolom_target if c in df_display.columns]
         
         st.dataframe(
             df_display[cols_to_show], 
             use_container_width=True, 
-            hide_index=True
+            hide_index=True,
+            column_config={
+                # Membuat kolom Harga Satuan rata kanan
+                "Harga Satuan": st.column_config.TextColumn(
+                    "Harga Satuan (Rp)",
+                    help="Harga per satuan barang",
+                    width="medium",
+                ),
+                # Membuat kolom Total Harga rata kanan
+                "Total Harga": st.column_config.TextColumn(
+                    "Total Harga (Rp)",
+                    help="Total harga setelah dikali pemakaian",
+                    width="medium",
+                ),
+                "No": st.column_config.Column(width="small"),
+                "Total Pemakaian": st.column_config.Column(width="small"),
+            }
         )
         
-    except Exception as e:
-        st.error(f"Terjadi kesalahan: {e}")
-
+st.dataframe(
+            df_biaya[cols_to_show], # Menggunakan df_biaya asli yang isinya angka
+            use_container_width=True, 
+            hide_index=True,
+            column_config={
+                "Harga Satuan (Rp)": st.column_config.NumberColumn(
+                    "Harga Satuan (Rp)",
+                    format="Rp %d",
+                    locale="id-ID", # MEMAKSA FORMAT INDONESIA (TITIK & RATA KANAN)
+                ),
+                "Total Harga (Rp)": st.column_config.NumberColumn(
+                    "Total Harga (Rp)",
+                    format="Rp %d",
+                    locale="id-ID", # MEMAKSA FORMAT INDONESIA (TITIK & RATA KANAN)
+                )
+            }
+        )
 # --- MENU 3: DOKUMEN PENTING ---
 elif menu == "📁 Dokumen Penting":
     st.title("📁 Dokumen Penting")
