@@ -4,37 +4,25 @@ import pandas as pd
 # ==========================================
 # 1. SETUP IDENTITAS (PASTIKAN ID SHEET BENAR)
 # ==========================================
-# Ganti kode di bawah dengan ID Google Sheets Anda
+# Ganti ID di bawah dengan ID dari URL Google Sheets Anda
 SHEET_ID = '1-FhaAsVlrYUnn0tbC-ccwMMZIS7RKZ57lDho5yLBtI8'
 
+@st.cache_data(ttl=600) # Data disimpan 10 menit agar tidak loading terus
 def read_sheet(sheet_name):
-    # Nama sheet harus persis sama dengan yang ada di Google Sheets
-    sheet_name_fixed = sheet_name.replace(" ", "%20")
-    url = f'https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet={sheet_name_fixed}'
+    # Mengubah spasi jadi format URL agar tidak error
+    sheet_name_url = sheet_name.replace(" ", "%20")
+    url = f'https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet={sheet_name_url}'
     return pd.read_csv(url)
 
-# Konfigurasi Tampilan
 st.set_page_config(page_title="R&D Riset Kapal ITS", layout="wide", page_icon="🚢")
 
-# Custom CSS untuk mempercantik tampilan
-st.markdown("""
-    <style>
-    .main { background-color: #f8f9fa; }
-    .stMetric { background-color: #ffffff; padding: 15px; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
-    </style>
-    """, unsafe_allow_html=True)
-
-# ==========================================
-# 2. SIDEBAR NAVIGASI
-# ==========================================
+# SIDEBAR NAVIGASI
 st.sidebar.title("⚓ R&D Dashboard")
 menu = st.sidebar.radio("Pilih Menu:", ["📸 Koleksi Foto", "💰 Estimasi Biaya", "📁 Dokumen Penting"])
 
 # --- MENU 1: KOLEKSI FOTO ---
-if menu == "Koleksi Foto":
+if menu == "📸 Koleksi Foto":
     st.title("📸 Koleksi Foto Kegiatan")
-    st.write("Daftar dokumentasi kegiatan per tanggal.")
-    
     try:
         df_foto = read_sheet('Foto Kegiatan')
         
@@ -43,36 +31,31 @@ if menu == "Koleksi Foto":
                                  format_func=lambda x: "November" if x==11 else "Desember", 
                                  horizontal=True)
         
-        # Filter Data
+        # Filter Data berdasarkan kolom 'Bulan'
         filtered_foto = df_foto[df_foto['Bulan'] == bulan_pilihan]
         
         if filtered_foto.empty:
-            st.warning(f"Data untuk bulan ini belum tersedia.")
+            st.warning(f"Data untuk bulan ini belum tersedia di Google Sheets.")
         else:
             for _, row in filtered_foto.iterrows():
-                with st.container():
-                    col1, col2 = st.columns([1, 4])
-                    # Headline Tanggal
-                    col1.subheader(f"🗓️ Tgl {int(row['Tanggal'])}")
-                    with col2:
-                        st.info(f"Keterangan: {row['Keterangan'] if pd.notna(row['Keterangan']) else 'Tidak ada keterangan'}")
-                        st.link_button(f"👉 Lihat Foto Kegiatan", row['Link Folder Gdrive'])
-                    st.divider()
+                # Headline Tanggal
+                st.subheader(f"🗓️ Tanggal {int(row['Tanggal'])}")
+                st.info(f"Deskripsi: {row['Keterangan'] if pd.notna(row['Keterangan']) else '-'}")
+                st.link_button(f"👉 Buka Folder Foto", str(row['Link Folder Gdrive']))
+                st.divider()
     except Exception as e:
-        st.error(f"Gagal memuat data Foto: {e}")
+        st.error(f"Error: Pastikan nama Tab 'Foto Kegiatan' sudah benar. Detail: {e}")
 
 # --- MENU 2: ESTIMASI BIAYA ---
-elif menu == "Estimasi Biaya":
+elif menu == "💰 Estimasi Biaya":
     st.title("💰 Estimasi Kebutuhan & Biaya")
-    
     try:
         df_biaya = read_sheet('Estimasi Biaya')
         
-        # Bersihkan data (hapus baris kosong jika ada)
-        df_biaya = df_biaya.dropna(subset=['Nama Barang'])
-
-        # Dashboard Metrik
-        total_anggaran = df_biaya['Total Harga (Rp)'].sum()
+        # Menghitung Total dari kolom 'Total Harga (Rp)'
+        # Pastikan kolom ini di Google Sheets berisi angka, bukan teks
+        total_anggaran = pd.to_numeric(df_biaya['Total Harga (Rp)'], errors='coerce').sum()
+        
         st.metric("Total Estimasi Anggaran Proyek", f"Rp {total_anggaran:,.0f}")
         
         # Filter Kategori
@@ -81,27 +64,19 @@ elif menu == "Estimasi Biaya":
         
         df_display = df_biaya[df_biaya['Kategori'].isin(pilihan_kat)]
         
-        # Tampilkan Tabel
         st.dataframe(df_display, use_container_width=True, hide_index=True)
-        
     except Exception as e:
-        st.error(f"Gagal memuat data Biaya: {e}")
+        st.error(f"Error: Pastikan nama Tab 'Estimasi Biaya' sudah benar. Detail: {e}")
 
 # --- MENU 3: DOKUMEN PENTING ---
-elif menu == "Dokumen Penting":
-    st.title("📁 Dokumen Kerjasama & Internal")
-    
+elif menu == "📁 Dokumen Penting":
+    st.title("📁 Dokumen Penting")
     try:
         df_doc = read_sheet('Dokumen Penting')
         
         for _, row in df_doc.iterrows():
             with st.expander(f"📄 {row['Nama Dokumen']}"):
-                st.write(f"**Instansi/Kegiatan:** {row['Kegiatan']}")
-                st.link_button("Buka Folder Dokumen", row['Link Unduh'])
-                
+                st.write(f"**Kategori:** {row['Kegiatan']}")
+                st.link_button("Buka Link Dokumen", str(row['Link Unduh']))
     except Exception as e:
-        st.error(f"Gagal memuat data Dokumen: {e}")
-
-# Footer
-st.sidebar.markdown("---")
-st.sidebar.caption("R&D Riset Kapal Nelayan 8GT ITS © 2024")
+        st.error(f"Error: Pastikan nama Tab 'Dokumen Penting' sudah benar. Detail: {e}")
