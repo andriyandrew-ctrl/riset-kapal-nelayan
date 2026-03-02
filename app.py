@@ -7,7 +7,6 @@ import pandas as pd
 # Ganti ID di bawah dengan ID dari URL Google Sheets Anda
 SHEET_ID = '1-FhaAsVlrYUnn0tbC-ccwMMZIS7RKZ57lDho5yLBtI8'
 
-@st.cache_data(ttl=600) # Data disimpan 10 menit agar tidak loading terus
 def read_sheet(sheet_name):
     # Mengubah spasi jadi format URL agar tidak error
     sheet_name_url = sheet_name.replace(" ", "%20")
