@@ -6,14 +6,18 @@ SHEET_ID = '1-FhaAsVlrYUnn0tbC-ccwMMZIS7RKZ57lDho5yLBtI8'
 
 @st.cache_data(ttl=60) # Refresh data setiap 1 menit
 def read_sheet(sheet_name):
-    sheet_name_url = sheet_name.replace(" ", "%20")
-    url = f'https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet={sheet_name_url}'
-    df = pd.read_csv(url)
-    # Hapus kolom yang benar-benar kosong
-    df = df.dropna(axis=1, how='all')
-    # Hapus baris kosong berdasarkan kolom ke-2 dan ke-3
-    df = df.dropna(subset=[df.columns[1], df.columns[2]], how='all')
-    return df
+    try:
+        sheet_name_url = sheet_name.replace(" ", "%20")
+        url = f'https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet={sheet_name_url}'
+        df = pd.read_csv(url)
+        # Hapus kolom yang benar-benar kosong
+        df = df.dropna(axis=1, how='all')
+        # Hapus baris kosong
+        df = df.dropna(subset=[df.columns[1], df.columns[2]], how='all')
+        return df
+    except Exception as e:
+        st.error(f"Gagal membaca sheet {sheet_name}: {e}")
+        return pd.DataFrame()
 
 st.set_page_config(page_title="R&D Riset Kapal ITS", layout="wide", page_icon="🚢")
 
@@ -24,10 +28,9 @@ menu = st.sidebar.radio("Pilih Menu:", ["📸 Koleksi Foto", "💰 Estimasi Biay
 # --- MENU 1: KOLEKSI FOTO ---
 if menu == "📸 Koleksi Foto":
     st.title("📸 Koleksi Foto Kegiatan")
-    try:
-        df_foto = read_sheet('Foto Kegiatan')
+    df_foto = read_sheet('Foto Kegiatan')
+    if not df_foto.empty:
         bulan_pilihan = st.radio("Pilih Bulan:", [11, 12], format_func=lambda x: "November" if x==11 else "Desember", horizontal=True)
-        
         filtered_foto = df_foto[df_foto['Bulan'] == bulan_pilihan]
         
         if filtered_foto.empty:
@@ -37,14 +40,12 @@ if menu == "📸 Koleksi Foto":
                 st.subheader(f"🗓️ Tanggal {int(row['Tanggal'])}")
                 st.link_button(f"👉 Buka Folder Foto", str(row['Link Folder Gdrive']))
                 st.divider()
-    except Exception as e:
-        st.error(f"Koneksi Google Sheets bermasalah atau nama tab salah.")
 
 # --- MENU 2: ESTIMASI BIAYA ---
 elif menu == "💰 Estimasi Biaya":
     st.title("💰 Estimasi Kebutuhan & Biaya")
-    try:
-        df_biaya = read_sheet('Estimasi Biaya')
+    df_biaya = read_sheet('Estimasi Biaya')
+    if not df_biaya.empty:
         df_biaya.columns = df_biaya.columns.str.strip()
 
         # FUNGSI MEMBERSIHKAN ANGKA
@@ -65,47 +66,4 @@ elif menu == "💰 Estimasi Biaya":
             df_biaya[col_satuan] = df_biaya[col_satuan].apply(clean_number)
         
         # Headline Metrik
-        total_biaya = df_biaya[col_total].sum()
-        st.metric("Total Anggaran Keseluruhan", f"Rp {total_biaya:,.0f}".replace(',', '.'))
-        st.markdown("---")
-
-        # Tentukan kolom yang mau ditampilkan
-        kolom_target = ['No', 'Kategori', 'Nama Barang', 'Merk/Ukuran', 'Total Pemakaian', 'Satuan', 'Harga Satuan (Rp)', 'Total Harga (Rp)']
-        cols_to_show = [c for c in kolom_target if c in df_biaya.columns]
-        
-        # TAMPILAN TABEL RATA KANAN & TITIK RIBUAN
-        st.dataframe(
-            df_biaya[cols_to_show], 
-            use_container_width=True, 
-            hide_index=True,
-            column_config={
-                "Harga Satuan (Rp)": st.column_config.NumberColumn(
-                    "Harga Satuan (Rp)",
-                    format="Rp %d",
-                    locale="id-ID",
-                ),
-                "Total Harga (Rp)": st.column_config.NumberColumn(
-                    "Total Harga (Rp)",
-                    format="Rp %d",
-                    locale="id-ID",
-                ),
-                "No": st.column_config.Column(width="small"),
-                "Total Pemakaian": st.column_config.Column(width="small"),
-            }
-        )
-        
-    except Exception as e:
-        st.error(f"Terjadi kesalahan di menu Biaya: {e}")
-
-# --- MENU 3: DOKUMEN PENTING ---
-elif menu == "📁 Dokumen Penting":
-    st.title("📁 Dokumen Penting")
-    try:
-        df_doc = read_sheet('Dokumen Penting')
-        df_doc.columns = df_doc.columns.str.strip()
-        for _, row in df_doc.iterrows():
-            with st.expander(f"📄 {row['Nama Dokumen']}"):
-                st.write(f"**Kategori:** {row['Kegiatan']}")
-                st.link_button("Buka Link Gdrive", str(row['Link Unduh']))
-    except Exception as e:
-        st.error(f"Gagal memuat dokumen.")
+        total_biaya =
