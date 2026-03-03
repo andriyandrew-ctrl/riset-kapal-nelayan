@@ -23,17 +23,33 @@ menu = st.sidebar.radio("Pilih Menu:", ["📸 Koleksi Foto", "💰 Estimasi Biay
 def format_idr(val):
     return f"Rp {val:,.0f}".replace(',', '.')
 
-# --- MENU 1: KOLEKSI FOTO ---
+# --- MENU 1: KOLEKSI FOTO (UPDATED) ---
 if menu == "📸 Koleksi Foto":
     st.title("📸 Koleksi Foto Kegiatan")
     df_foto = read_sheet('Foto Kegiatan')
     if not df_foto.empty:
-        bln = st.radio("Pilih Bulan:", [11, 12], format_func=lambda x: "November" if x==11 else "Desember", horizontal=True)
-        f_df = df_foto[df_foto['Bulan'] == bln]
-        for _, r in f_df.iterrows():
-            st.subheader(f"🗓️ Tanggal {int(r['Tanggal'])}")
-            st.link_button("👉 Buka Folder Foto", str(r['Link Folder Gdrive']))
-            st.divider()
+        # Pilihan Bulan sesuai data di Excel
+        bln = st.radio("Pilih Bulan:", [11, 12], 
+                       format_func=lambda x: "November" if x==11 else "Desember", 
+                       horizontal=True)
+        
+        # Filter data berdasarkan bulan
+        f_df = df_foto[df_foto['Bulan'] == bln].sort_values(by='Tanggal')
+        
+        if f_df.empty:
+            st.info(f"Belum ada koleksi foto untuk bulan ini.")
+        else:
+            # Tampilkan dalam kolom agar lebih rapi (grid 3 kolom)
+            cols = st.columns(3)
+            for i, (_, r) in enumerate(f_df.iterrows()):
+                with cols[i % 3]:
+                    st.markdown(f"### 🗓️ Tanggal {int(r['Tanggal'])}")
+                    # Menangani link yang mungkin memiliki koma di ujungnya dari CSV
+                    link = str(r['Link Folder Gdrive']).strip().rstrip(',')
+                    st.link_button("📂 Buka Folder Foto", link, use_container_width=True)
+                    st.write("---")
+    else:
+        st.error("Gagal memuat data foto.")
 
 # --- MENU 2: ESTIMASI BIAYA ---
 elif menu == "💰 Estimasi Biaya":
@@ -41,6 +57,7 @@ elif menu == "💰 Estimasi Biaya":
     df_raw = read_sheet('Estimasi Biaya')
     if not df_raw.empty:
         df_raw.columns = df_raw.columns.str.strip()
+        # Filter No agar tidak menghitung baris TOTAL
         df_b = df_raw[pd.to_numeric(df_raw['No'], errors='coerce').notnull()].copy()
 
         def cln(x):
@@ -70,12 +87,7 @@ elif menu == "📁 Dokumen Penting":
         df_d.columns = df_d.columns.str.strip()
         for _, r in df_d.iterrows():
             nama = str(r['Nama Dokumen'])
-            # Tentukan ikon berdasarkan nama dokumen
             ico = "🛠️" if "Engineering" in nama else "🏁" if "Akhir" in nama else "📄"
-            
             with st.expander(f"{ico} {nama}"):
                 st.write(f"**Kategori:** {r['Kegiatan']}")
-                # Baris di bawah ini sering error jika terputus, saya buat sangat singkat:
                 st.link_button("Buka Dokumen", str(r['Link Unduh']))
-    else:
-        st.info("Dokumen tidak ditemukan.")
