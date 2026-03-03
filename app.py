@@ -23,7 +23,7 @@ NAMA_BULAN = {
 }
 
 # SIDEBAR
-st.sidebar.title("⚓ Dashboard Riset Kapal Nelayan Baja KS-ITS")
+st.sidebar.title("⚓ Dashboard Riset Kapal Nelayan Baja")
 menu = st.sidebar.radio("Pilih Menu:", ["📸 Koleksi Foto", "💰 Estimasi Biaya", "📁 Dokumen Penting"])
 
 def format_idr(val):
