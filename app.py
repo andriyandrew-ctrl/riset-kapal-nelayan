@@ -16,6 +16,12 @@ def read_sheet(sheet_name):
 
 st.set_page_config(page_title="R&D Riset Kapal ITS", layout="wide", page_icon="🚢")
 
+# Mapping Nama Bulan
+NAMA_BULAN = {
+    1: "Januari", 2: "Februari", 3: "Maret", 4: "April", 5: "Mei", 6: "Juni",
+    7: "Juli", 8: "Agustus", 9: "September", 10: "Oktober", 11: "November", 12: "Desember"
+}
+
 # SIDEBAR
 st.sidebar.title("⚓ R&D Dashboard")
 menu = st.sidebar.radio("Pilih Menu:", ["📸 Koleksi Foto", "💰 Estimasi Biaya", "📁 Dokumen Penting"])
@@ -23,31 +29,30 @@ menu = st.sidebar.radio("Pilih Menu:", ["📸 Koleksi Foto", "💰 Estimasi Biay
 def format_idr(val):
     return f"Rp {val:,.0f}".replace(',', '.')
 
-# --- MENU 1: KOLEKSI FOTO (UPDATED) ---
+# --- MENU 1: KOLEKSI FOTO (DINAMIS) ---
 if menu == "📸 Koleksi Foto":
     st.title("📸 Koleksi Foto Kegiatan")
     df_foto = read_sheet('Foto Kegiatan')
     if not df_foto.empty:
-        # Pilihan Bulan sesuai data di Excel
-        bln = st.radio("Pilih Bulan:", [11, 12], 
-                       format_func=lambda x: "November" if x==11 else "Desember", 
-                       horizontal=True)
+        # Ambil daftar bulan yang tersedia di data secara unik & urutkan
+        list_bulan = sorted(df_foto['Bulan'].unique().tolist())
         
-        # Filter data berdasarkan bulan
-        f_df = df_foto[df_foto['Bulan'] == bln].sort_values(by='Tanggal')
-        
-        if f_df.empty:
-            st.info(f"Belum ada koleksi foto untuk bulan ini.")
-        else:
-            # Tampilkan dalam kolom agar lebih rapi (grid 3 kolom)
+        if list_bulan:
+            bln = st.radio("Pilih Bulan:", list_bulan, 
+                           format_func=lambda x: NAMA_BULAN.get(x, f"Bulan {x}"), 
+                           horizontal=True)
+            
+            f_df = df_foto[df_foto['Bulan'] == bln].sort_values(by='Tanggal')
+            
             cols = st.columns(3)
             for i, (_, r) in enumerate(f_df.iterrows()):
                 with cols[i % 3]:
                     st.markdown(f"### 🗓️ Tanggal {int(r['Tanggal'])}")
-                    # Menangani link yang mungkin memiliki koma di ujungnya dari CSV
                     link = str(r['Link Folder Gdrive']).strip().rstrip(',')
                     st.link_button("📂 Buka Folder Foto", link, use_container_width=True)
                     st.write("---")
+        else:
+            st.info("Belum ada data bulan yang tersedia.")
     else:
         st.error("Gagal memuat data foto.")
 
@@ -57,7 +62,6 @@ elif menu == "💰 Estimasi Biaya":
     df_raw = read_sheet('Estimasi Biaya')
     if not df_raw.empty:
         df_raw.columns = df_raw.columns.str.strip()
-        # Filter No agar tidak menghitung baris TOTAL
         df_b = df_raw[pd.to_numeric(df_raw['No'], errors='coerce').notnull()].copy()
 
         def cln(x):
