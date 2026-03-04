@@ -1,18 +1,34 @@
 import streamlit as st
 import pandas as pd
 
-# 1. SETUP IDENTITAS & STYLE (Menghilangkan GitHub & Header)
+# 1. SETUP IDENTITAS & TOTAL PRIVACY STYLE
 st.set_page_config(page_title="R&D Riset Kapal ITS", layout="wide", page_icon="🚢")
 
-hide_style = """
+# CSS UNTUK MENGHAPUS SEMUA JEJAK PROFIL, GITHUB, DAN BRANDING
+hide_full_branding = """
     <style>
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-    header {visibility: hidden;}
-    .viewerBadge_container__1QS1n {display: none !important;}
+    /* Menghilangkan Header (Logo GitHub & Tombol Deploy) */
+    header {visibility: hidden !important; height: 0px !important;}
+    
+    /* Menghilangkan Menu Hamburger (Tiga Garis) */
+    #MainMenu {visibility: hidden !important;}
+    
+    /* Menghilangkan Footer 'Made with Streamlit' */
+    footer {visibility: hidden !important;}
+    
+    /* Menghilangkan Badge Profil Akun di pojok kanan bawah secara paksa */
+    [data-testid="stStatusWidget"] {display: none !important;}
+    .stAppDeployButton {display: none !important;}
+    div[class^="viewerBadge"] {display: none !important;}
+    
+    /* Menghilangkan overlay 'Manage App' bagi pengunjung */
+    div[data-testid="stDecoration"] {display: none !important;}
+    
+    /* Merapikan posisi konten agar tidak ada celah di atas */
+    .block-container {padding-top: 0rem !important; padding-bottom: 0rem !important;}
     </style>
 """
-st.markdown(hide_style, unsafe_allow_html=True)
+st.markdown(hide_full_branding, unsafe_allow_html=True)
 
 SHEET_ID = '1-FhaAsVlrYUnn0tbC-ccwMMZIS7RKZ57lDho5yLBtI8'
 
@@ -27,10 +43,11 @@ def read_sheet(sheet_name):
     except:
         return pd.DataFrame()
 
-# Fungsi Format Angka Indonesia (Titik tanpa Rp)
+# Fungsi format angka (Titik, Tanpa desimal, Tanpa Rp)
 def fmt_titik(val):
     try:
-        return f"{int(val):,}".replace(',', '.')
+        if pd.isna(val) or val == '': return "0"
+        return f"{int(float(val)):,}".replace(',', '.')
     except:
         return str(val)
 
@@ -59,23 +76,18 @@ elif menu == "💰 Estimasi Biaya":
     df_raw = read_sheet('Estimasi Biaya')
     if not df_raw.empty:
         df_clean = df_raw[pd.to_numeric(df_raw['No'], errors='coerce').notnull()].copy()
-        
         c_s, c_t = 'Harga Satuan (Rp)', 'Total Harga (Rp)'
-        # Pastikan angka bersih (Numeric)
         df_clean[c_s] = pd.to_numeric(df_clean[c_s], errors='coerce').fillna(0)
         df_clean[c_t] = pd.to_numeric(df_clean[c_t], errors='coerce').fillna(0)
 
-        # Ringkasan
-        st.markdown("### 🔍 Filter Kategori")
         kat = ["Semua"] + sorted(df_clean['Kategori'].unique().tolist())
-        pilih = st.selectbox("Pilih Kategori:", kat)
+        pilih = st.selectbox("Filter Kategori:", kat)
         df_f = df_clean if pilih == "Semua" else df_clean[df_clean['Kategori'] == pilih]
 
         m1, m2 = st.columns(2)
-        m1.metric("Grand Total (Rp)", fmt_titik(df_clean[c_t].sum()))
-        m2.metric(f"Total {pilih} (Rp)", fmt_titik(df_f[c_t].sum()))
+        m1.metric("Grand Total Anggaran", f"Rp {fmt_titik(df_clean[c_t].sum())}")
+        m2.metric(f"Total {pilih}", f"Rp {fmt_titik(df_f[c_t].sum())}")
         
-        # Tampilan Tabel
         df_disp = df_f.copy()
         df_disp[c_s] = df_disp[c_s].apply(fmt_titik)
         df_disp[c_t] = df_disp[c_t].apply(fmt_titik)
