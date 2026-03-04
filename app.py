@@ -1,52 +1,41 @@
 import streamlit as st
 import pandas as pd
 
-# 1. SETUP IDENTITAS & CSS ANTI-GITHUB REVISI FINAL
+# 1. SETUP IDENTITAS & CSS PERTAHANAN TERAKHIR
 st.set_page_config(page_title="R&D Riset Kapal ITS", layout="wide", page_icon="🚢")
 
-# CSS Khusus: Menghapus branding secara menyeluruh tanpa merusak tombol sidebar
-# Menggunakan selector atribut [data-testid] yang lebih stabil
-hide_all_jejak_branding = """
+# CSS REVISI TOTAL: Memotong sisi kanan header agar GitHub terbuang
+hide_branding_final = """
     <style>
-    /* Sembunyikan Header Kanan (GitHub, Deploy, Profil) */
-    header[data-testid="stHeader"] > div:nth-child(2) {
-        display: none !important;
-    }
+    /* 1. Sembunyikan Footer & Status Widget (Bawah) */
+    footer {visibility: hidden !important;}
+    [data-testid="stStatusWidget"] {display: none !important;}
     
-    /* Sembunyikan elemen dekorasi garis pelangi di atas */
-    [data-testid="stDecoration"] {
-        display: none !important;
-    }
+    /* 2. Sembunyikan Dekorasi Garis Atas */
+    [data-testid="stDecoration"] {display: none !important;}
 
-    /* Sembunyikan Footer 'Made with Streamlit' */
-    footer {
-        visibility: hidden !important;
-        height: 0px !important;
-    }
+    /* 3. Sembunyikan Menu Hamburger */
+    #MainMenu {visibility: hidden !important;}
 
-    /* Sembunyikan Status Widget di pojok kanan bawah */
-    [data-testid="stStatusWidget"] {
-        display: none !important;
-    }
-
-    /* Sembunyikan Menu Hamburger */
-    #MainMenu {
-        visibility: hidden !important;
-    }
-
-    /* Pastikan header tetap ada tapi transparan agar tombol sidebar (panah) bisa diklik */
+    /* 4. STRATEGI POTONG HEADER: 
+       Kita buat header hanya selebar 100px (hanya cukup untuk tombol sidebar) 
+       dan menyembunyikan sisanya ke arah kanan */
     header[data-testid="stHeader"] {
         background-color: rgba(0,0,0,0) !important;
-        border: none !important;
+        width: 100px !important; /* Hanya sisakan ruang untuk tombol sidebar */
+        overflow: hidden !important;
     }
 
-    /* Rapikan posisi konten */
-    .block-container {
-        padding-top: 1rem !important;
+    /* 5. Paksa hilangkan elemen badge profil jika masih melompat keluar */
+    div[class^="viewerBadge"], .stAppDeployButton {
+        display: none !important;
     }
+
+    /* 6. Rapikan posisi konten agar tidak terlalu mepet atas */
+    .block-container {padding-top: 1rem !important;}
     </style>
 """
-st.markdown(hide_all_jejak_branding, unsafe_allow_html=True)
+st.markdown(hide_branding_final, unsafe_allow_html=True)
 
 SHEET_ID = '1-FhaAsVlrYUnn0tbC-ccwMMZIS7RKZ57lDho5yLBtI8'
 
@@ -61,7 +50,6 @@ def read_sheet(sheet_name):
     except:
         return pd.DataFrame()
 
-# Fungsi format angka (Hanya Titik)
 def fmt_titik(val):
     try:
         if pd.isna(val) or val == '': return "0"
