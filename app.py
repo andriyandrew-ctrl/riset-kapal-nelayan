@@ -4,14 +4,14 @@ import pandas as pd
 # 1. SETUP IDENTITAS
 SHEET_ID = '1-FhaAsVlrYUnn0tbC-ccwMMZIS7RKZ57lDho5yLBtI8'
 
-@st.cache_data(ttl=5) # Refresh sangat cepat untuk memastikan update muncul
+@st.cache_data(ttl=5)
 def read_sheet(sheet_name):
     try:
         sn_url = sheet_name.replace(" ", "%20")
         url = f'https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet={sn_url}'
         df = pd.read_csv(url)
-        # Bersihkan spasi di nama kolom (MENGHAPUS SPASI GANDA)
-        df.columns = [ " ".join(str(c).split()) for c in df.columns ]
+        # Normalisasi spasi di nama kolom (Mengatasi spasi ganda)
+        df.columns = [" ".join(str(c).split()) for c in df.columns]
         return df.dropna(axis=1, how='all')
     except:
         return pd.DataFrame()
@@ -48,30 +48,33 @@ if menu == "📸 Koleksi Foto":
                     st.markdown(f"### 🗓️ Tanggal {int(r['Tanggal'])}")
                     st.link_button("📂 Buka Folder Foto", str(r['Link Folder Gdrive']).strip().rstrip(','), use_container_width=True)
 
-# --- MENU 2: ESTIMASI BIAYA (PERBAIKAN KOLOM & FORMAT) ---
+# --- MENU 2: ESTIMASI BIAYA ---
 elif menu == "💰 Estimasi Biaya":
     st.title("💰 Estimasi Kebutuhan & Biaya")
     df_raw = read_sheet('Estimasi Biaya')
     
     if not df_raw.empty:
-        # Filter Baris
+        # Filter baris: Hanya ambil yang kolom 'No' berisi angka
         df_clean = df_raw[pd.to_numeric(df_raw['No'], errors='coerce').notnull()].copy()
 
-        def cln(x):
-            if pd.isna(x) or x == '': return 0
+        # FUNGSI PEMBERSIH ANGKA YANG LEBIH KUAT
+        def force_numeric(x):
+            if pd.isna(x) or x == '': return 0.0
             if isinstance(x, (int, float)): return float(x)
+            # Buang semua karakter kecuali angka
             s = "".join(filter(str.isdigit, str(x)))
-            return float(s) if s else 0
+            return float(s) if s else 0.0
 
-        # Identifikasi Nama Kolom (Setelah di-split & join spasi di fungsi read_sheet)
         c_s = 'Harga Satuan (Rp)'
         c_t = 'Total Harga (Rp)'
-        c_spec = 'Type/ Spesifikasi' # Sekarang hanya 1 spasi
+        c_spec = 'Type/ Spesifikasi'
 
-        if c_t in df_clean.columns: df_clean[c_t] = df_clean[c_t].apply(cln)
-        if c_s in df_clean.columns: df_clean[c_s] = df_clean[c_s].apply(cln)
+        # Pastikan kolom menjadi tipe FLOAT agar NumberColumn bisa memberikan titik
+        if c_s in df_clean.columns:
+            df_clean[c_s] = df_clean[c_s].apply(force_numeric)
+        if c_t in df_clean.columns:
+            df_clean[c_t] = df_clean[c_t].apply(force_numeric)
 
-        # Metrik Atas
         st.markdown("### 🔍 Filter & Ringkasan")
         kategori_list = ["Semua Kategori"] + sorted(df_clean['Kategori'].unique().tolist())
         pilihan = st.selectbox("Pilih Kategori Barang:", kategori_list)
@@ -83,11 +86,10 @@ elif menu == "💰 Estimasi Biaya":
         m2.metric(f"Total {pilihan}", format_idr(df_final[c_t].sum()))
         st.markdown("---")
         
-        # Kolom yang ditampilkan
         target = ['No', 'Kategori', 'Nama Barang', 'Merk/Ukuran', c_spec, 'Total Pemakaian', 'Satuan', c_s, c_t]
         show = [c for c in target if c in df_final.columns]
         
-        # DISPLAY TABEL DENGAN FORMAT NOMINAL TITIK
+        # KONFIGURASI TABEL DENGAN FORMAT TITIK
         st.dataframe(
             df_final[show], 
             use_container_width=True, 
@@ -95,7 +97,8 @@ elif menu == "💰 Estimasi Biaya":
             column_config={
                 c_s: st.column_config.NumberColumn("Harga Satuan", format="Rp %d"),
                 c_t: st.column_config.NumberColumn("Total Harga", format="Rp %d"),
-                c_spec: st.column_config.Column("Type/ Spesifikasi", width="large")
+                c_spec: st.column_config.Column("Type/ Spesifikasi", width="large"),
+                "No": st.column_config.Column(width="small")
             }
         )
 
