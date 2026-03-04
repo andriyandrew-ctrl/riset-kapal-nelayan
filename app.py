@@ -1,34 +1,39 @@
 import streamlit as st
 import pandas as pd
 
-# 1. SETUP IDENTITAS & TOTAL PRIVACY STYLE
+# 1. SETUP IDENTITAS & CSS REVISI
 st.set_page_config(page_title="R&D Riset Kapal ITS", layout="wide", page_icon="🚢")
 
-# CSS UNTUK MENGHAPUS SEMUA JEJAK PROFIL, GITHUB, DAN BRANDING
-hide_full_branding = """
+# CSS yang aman: Menghilangkan branding tapi mempertahankan tombol sidebar
+safe_hide_css = """
     <style>
-    /* Menghilangkan Header (Logo GitHub & Tombol Deploy) */
-    header {visibility: hidden !important; height: 0px !important;}
+    /* Sembunyikan Header bawaan tapi biarkan tombol sidebar tetap ada */
+    header[data-testid="stHeader"] {
+        background-color: rgba(0,0,0,0);
+        color: rgba(0,0,0,0);
+    }
     
-    /* Menghilangkan Menu Hamburger (Tiga Garis) */
-    #MainMenu {visibility: hidden !important;}
-    
-    /* Menghilangkan Footer 'Made with Streamlit' */
+    /* Sembunyikan elemen spesifik di dalam header (GitHub, Profil) */
+    header[data-testid="stHeader"] [data-testid="stHeaderNavView"],
+    header[data-testid="stHeader"] .stAppDeployButton,
+    header[data-testid="stHeader"] div[class^="viewerBadge"] {
+        display: none !important;
+    }
+
+    /* Sembunyikan Footer 'Made with Streamlit' */
     footer {visibility: hidden !important;}
-    
-    /* Menghilangkan Badge Profil Akun di pojok kanan bawah secara paksa */
+
+    /* Sembunyikan Menu Hamburger (opsional, jika ingin benar-benar bersih) */
+    #MainMenu {visibility: hidden !important;}
+
+    /* Menghilangkan badge status di pojok kanan bawah */
     [data-testid="stStatusWidget"] {display: none !important;}
-    .stAppDeployButton {display: none !important;}
-    div[class^="viewerBadge"] {display: none !important;}
-    
-    /* Menghilangkan overlay 'Manage App' bagi pengunjung */
-    div[data-testid="stDecoration"] {display: none !important;}
-    
-    /* Merapikan posisi konten agar tidak ada celah di atas */
-    .block-container {padding-top: 0rem !important; padding-bottom: 0rem !important;}
+
+    /* Beri sedikit ruang di atas agar konten tidak tertutup tombol sidebar */
+    .block-container {padding-top: 1rem !important;}
     </style>
 """
-st.markdown(hide_full_branding, unsafe_allow_html=True)
+st.markdown(safe_hide_css, unsafe_allow_html=True)
 
 SHEET_ID = '1-FhaAsVlrYUnn0tbC-ccwMMZIS7RKZ57lDho5yLBtI8'
 
@@ -43,10 +48,8 @@ def read_sheet(sheet_name):
     except:
         return pd.DataFrame()
 
-# Fungsi format angka (Titik, Tanpa desimal, Tanpa Rp)
 def fmt_titik(val):
     try:
-        if pd.isna(val) or val == '': return "0"
         return f"{int(float(val)):,}".replace(',', '.')
     except:
         return str(val)
