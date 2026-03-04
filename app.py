@@ -10,7 +10,7 @@ def read_sheet(sheet_name):
         sn_url = sheet_name.replace(" ", "%20")
         url = f'https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet={sn_url}'
         df = pd.read_csv(url)
-        # Normalisasi spasi di nama kolom (Mengatasi spasi ganda)
+        # Normalisasi spasi di nama kolom
         df.columns = [" ".join(str(c).split()) for c in df.columns]
         return df.dropna(axis=1, how='all')
     except:
@@ -30,8 +30,24 @@ def get_label_periode(bln):
 st.sidebar.title("⚓ R&D Dashboard")
 menu = st.sidebar.radio("Pilih Menu:", ["📸 Koleksi Foto", "💰 Estimasi Biaya", "📁 Dokumen Penting"])
 
+# FUNGSI FORMAT RUPIAH DENGAN TITIK (HASILNYA TEKS)
 def format_idr(val):
-    return f"Rp {val:,.0f}".replace(',', '.')
+    try:
+        if pd.isna(val) or val == '': return "Rp 0"
+        # Ambil angka saja
+        s = "".join(filter(str.isdigit, str(val)))
+        if not s: return "Rp 0"
+        return f"Rp {int(s):,.0f}".replace(',', '.')
+    except:
+        return "Rp 0"
+
+# FUNGSI PEMBERSIH ANGKA MURNI (UNTUK PERHITUNGAN)
+def to_float(val):
+    try:
+        s = "".join(filter(str.isdigit, str(val)))
+        return float(s) if s else 0.0
+    except:
+        return 0.0
 
 # --- MENU 1: KOLEKSI FOTO ---
 if menu == "📸 Koleksi Foto":
@@ -54,51 +70,46 @@ elif menu == "💰 Estimasi Biaya":
     df_raw = read_sheet('Estimasi Biaya')
     
     if not df_raw.empty:
-        # Filter baris: Hanya ambil yang kolom 'No' berisi angka
+        # Filter baris: Hanya yang ada nomornya
         df_clean = df_raw[pd.to_numeric(df_raw['No'], errors='coerce').notnull()].copy()
-
-        # FUNGSI PEMBERSIH ANGKA YANG LEBIH KUAT
-        def force_numeric(x):
-            if pd.isna(x) or x == '': return 0.0
-            if isinstance(x, (int, float)): return float(x)
-            # Buang semua karakter kecuali angka
-            s = "".join(filter(str.isdigit, str(x)))
-            return float(s) if s else 0.0
 
         c_s = 'Harga Satuan (Rp)'
         c_t = 'Total Harga (Rp)'
         c_spec = 'Type/ Spesifikasi'
 
-        # Pastikan kolom menjadi tipe FLOAT agar NumberColumn bisa memberikan titik
-        if c_s in df_clean.columns:
-            df_clean[c_s] = df_clean[c_s].apply(force_numeric)
-        if c_t in df_clean.columns:
-            df_clean[c_t] = df_clean[c_t].apply(force_numeric)
+        # 1. HITUNG TOTAL DULU (MENGGUNAKAN ANGKA MURNI)
+        total_proyek = df_clean[c_t].apply(to_float).sum()
 
         st.markdown("### 🔍 Filter & Ringkasan")
         kategori_list = ["Semua Kategori"] + sorted(df_clean['Kategori'].unique().tolist())
         pilihan = st.selectbox("Pilih Kategori Barang:", kategori_list)
         
         df_final = df_clean if pilihan == "Semua Kategori" else df_clean[df_clean['Kategori'] == pilihan]
+        total_sub = df_final[c_t].apply(to_float).sum()
 
+        # Metrik Atas
         m1, m2 = st.columns(2)
-        m1.metric("Grand Total Anggaran", format_idr(df_clean[c_t].sum()))
-        m2.metric(f"Total {pilihan}", format_idr(df_final[c_t].sum()))
+        m1.metric("Grand Total Anggaran", format_idr(total_proyek))
+        m2.metric(f"Total {pilihan}", format_idr(total_sub))
         st.markdown("---")
         
+        # 2. UBAH KOLOM HARGA MENJADI TEKS BERFORMAT (TITIK RIBUAN) SEBELUM TAMPIL
+        df_display = df_final.copy()
+        df_display[c_s] = df_display[c_s].apply(format_idr)
+        df_display[c_t] = df_display[c_t].apply(format_idr)
+
         target = ['No', 'Kategori', 'Nama Barang', 'Merk/Ukuran', c_spec, 'Total Pemakaian', 'Satuan', c_s, c_t]
-        show = [c for c in target if c in df_final.columns]
+        show = [c for c in target if c in df_display.columns]
         
-        # KONFIGURASI TABEL DENGAN FORMAT TITIK
+        # DISPLAY TABEL (Menggunakan TextColumn agar titik tidak hilang)
         st.dataframe(
-            df_final[show], 
+            df_display[show], 
             use_container_width=True, 
             hide_index=True,
             column_config={
-                c_s: st.column_config.NumberColumn("Harga Satuan", format="Rp %d"),
-                c_t: st.column_config.NumberColumn("Total Harga", format="Rp %d"),
-                c_spec: st.column_config.Column("Type/ Spesifikasi", width="large"),
-                "No": st.column_config.Column(width="small")
+                c_s: st.column_config.TextColumn("Harga Satuan"),
+                c_t: st.column_config.TextColumn("Total Harga"),
+                c_spec: st.column_config.Column("Type/ Spesifikasi", width="large")
             }
         )
 
