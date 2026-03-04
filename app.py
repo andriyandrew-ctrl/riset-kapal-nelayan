@@ -1,39 +1,52 @@
 import streamlit as st
 import pandas as pd
 
-# 1. SETUP IDENTITAS & CSS ANTI-GITHUB
+# 1. SETUP IDENTITAS & CSS ANTI-GITHUB REVISI FINAL
 st.set_page_config(page_title="R&D Riset Kapal ITS", layout="wide", page_icon="🚢")
 
-# CSS REVISI: Menghilangkan GitHub & Profil Akun secara total tanpa merusak navigasi
-hide_github_v3 = """
+# CSS Khusus: Menghapus branding secara menyeluruh tanpa merusak tombol sidebar
+# Menggunakan selector atribut [data-testid] yang lebih stabil
+hide_all_jejak_branding = """
     <style>
-    /* 1. Sembunyikan Header Navigasi (GitHub, Deploy, Profil) */
-    [data-testid="stHeaderNavView"], 
-    .stAppDeployButton, 
-    header [class^="viewerBadge"] {
+    /* Sembunyikan Header Kanan (GitHub, Deploy, Profil) */
+    header[data-testid="stHeader"] > div:nth-child(2) {
+        display: none !important;
+    }
+    
+    /* Sembunyikan elemen dekorasi garis pelangi di atas */
+    [data-testid="stDecoration"] {
         display: none !important;
     }
 
-    /* 2. Sembunyikan Footer & Status Widget (Kanan Bawah) */
-    footer {visibility: hidden !important;}
-    [data-testid="stStatusWidget"] {display: none !important;}
-
-    /* 3. Sembunyikan Menu Hamburger (Tiga Garis) */
-    #MainMenu {visibility: hidden !important;}
-
-    /* 4. Pastikan Tombol Sidebar (Panah) tetap terlihat & bisa diklik */
-    header[data-testid="stHeader"] {
-        background-color: rgba(0,0,0,0);
+    /* Sembunyikan Footer 'Made with Streamlit' */
+    footer {
+        visibility: hidden !important;
+        height: 0px !important;
     }
-    
-    /* 5. Hilangkan garis dekorasi di bagian paling atas */
-    [data-testid="stDecoration"] {display: none !important;}
 
-    /* 6. Rapikan jarak atas agar tidak tertutup */
-    .block-container {padding-top: 2rem !important;}
+    /* Sembunyikan Status Widget di pojok kanan bawah */
+    [data-testid="stStatusWidget"] {
+        display: none !important;
+    }
+
+    /* Sembunyikan Menu Hamburger */
+    #MainMenu {
+        visibility: hidden !important;
+    }
+
+    /* Pastikan header tetap ada tapi transparan agar tombol sidebar (panah) bisa diklik */
+    header[data-testid="stHeader"] {
+        background-color: rgba(0,0,0,0) !important;
+        border: none !important;
+    }
+
+    /* Rapikan posisi konten */
+    .block-container {
+        padding-top: 1rem !important;
+    }
     </style>
 """
-st.markdown(hide_github_v3, unsafe_allow_html=True)
+st.markdown(hide_all_jejak_branding, unsafe_allow_html=True)
 
 SHEET_ID = '1-FhaAsVlrYUnn0tbC-ccwMMZIS7RKZ57lDho5yLBtI8'
 
@@ -43,7 +56,6 @@ def read_sheet(sheet_name):
         sn_url = sheet_name.replace(" ", "%20")
         url = f'https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet={sn_url}'
         df = pd.read_csv(url)
-        # Normalisasi spasi kolom
         df.columns = [" ".join(str(c).split()) for c in df.columns]
         return df.dropna(axis=1, how='all')
     except:
