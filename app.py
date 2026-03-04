@@ -74,3 +74,21 @@ elif menu == "💰 Estimasi Biaya":
         m1, m2 = st.columns(2)
         m1.metric("Grand Total (Rp)", fmt_titik(df_clean[c_t].sum()))
         m2.metric(f"Total {pilih} (Rp)", fmt_titik(df_f[c_t].sum()))
+        
+        # Tampilan Tabel
+        df_disp = df_f.copy()
+        df_disp[c_s] = df_disp[c_s].apply(fmt_titik)
+        df_disp[c_t] = df_disp[c_t].apply(fmt_titik)
+        
+        cols_show = ['No', 'Kategori', 'Nama Barang', 'Merk/Ukuran', 'Type/ Spesifikasi', 'Total Pemakaian', 'Satuan', c_s, c_t]
+        st.dataframe(df_disp[[c for c in cols_show if c in df_disp.columns]], use_container_width=True, hide_index=True)
+
+# --- MENU 3: DOKUMEN PENTING ---
+elif menu == "📁 Dokumen Penting":
+    st.title("📁 Dokumen Penting")
+    df_d = read_sheet('Dokumen Penting')
+    if not df_d.empty:
+        for _, r in df_d.iterrows():
+            with st.expander(f"📄 {r['Nama Dokumen']}"):
+                st.write(f"Kegiatan: {r['Kegiatan']}")
+                st.link_button("Buka Link", str(r['Link Unduh']))
