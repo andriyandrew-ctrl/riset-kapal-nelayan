@@ -22,36 +22,28 @@ NAMA_BULAN = {
     7: "Juli", 8: "Agustus", 9: "September", 10: "Oktober", 11: "November", 12: "Desember"
 }
 
-# Fungsi untuk menentukan tahun berdasarkan angka bulan (Logika Proyek)
 def get_label_periode(bln):
     nama = NAMA_BULAN.get(bln, f"Bulan {bln}")
-    # Jika bulan 11 atau 12, maka 2025. Jika bulan 1-10, maka 2026.
+    # Logika: Bulan 11-12 adalah 2025, lainnya 2026
     tahun = 2025 if bln >= 11 else 2026
     return f"{nama} {tahun}"
 
 # SIDEBAR
-st.sidebar.title("⚓ Dashboard Riset Kapal Nelayan Baja")
+st.sidebar.title("⚓ R&D Dashboard")
 menu = st.sidebar.radio("Pilih Menu:", ["📸 Koleksi Foto", "💰 Estimasi Biaya", "📁 Dokumen Penting"])
 
 def format_idr(val):
     return f"Rp {val:,.0f}".replace(',', '.')
 
-# --- MENU 1: KOLEKSI FOTO (DENGAN TAHUN) ---
+# --- MENU 1: KOLEKSI FOTO ---
 if menu == "📸 Koleksi Foto":
     st.title("📸 Koleksi Foto Kegiatan")
     df_foto = read_sheet('Foto Kegiatan')
     if not df_foto.empty:
-        # Ambil daftar bulan unik dan urutkan (11, 12, baru kemudian 2)
-        # Kita urutkan manual agar November 2025 muncul duluan daripada Februari 2026
         list_bulan = sorted(df_foto['Bulan'].unique().tolist(), key=lambda x: (x < 11, x))
-        
         if list_bulan:
-            bln = st.radio("Pilih Periode:", list_bulan, 
-                           format_func=get_label_periode, 
-                           horizontal=True)
-            
+            bln = st.radio("Pilih Periode:", list_bulan, format_func=get_label_periode, horizontal=True)
             f_df = df_foto[df_foto['Bulan'] == bln].sort_values(by='Tanggal')
-            
             cols = st.columns(3)
             for i, (_, r) in enumerate(f_df.iterrows()):
                 with cols[i % 3]:
@@ -60,17 +52,15 @@ if menu == "📸 Koleksi Foto":
                     link = str(r['Link Folder Gdrive']).strip().rstrip(',')
                     st.link_button("📂 Buka Folder Foto", link, use_container_width=True)
                     st.write("---")
-        else:
-            st.info("Bel_um ada data periode yang tersedia.")
-    else:
-        st.error("Gagal memuat data foto.")
 
-# --- MENU 2: ESTIMASI BIAYA ---
+# --- MENU 2: ESTIMASI BIAYA (DENGAN KOLOM TYPE & FORMAT RIBUAN) ---
 elif menu == "💰 Estimasi Biaya":
     st.title("💰 Estimasi Kebutuhan & Biaya")
     df_raw = read_sheet('Estimasi Biaya')
+    
     if not df_raw.empty:
         df_raw.columns = df_raw.columns.str.strip()
+        # Filter No agar tidak menghitung baris TOTAL
         df_clean = df_raw[pd.to_numeric(df_raw['No'], errors='coerce').notnull()].copy()
 
         def cln(x):
@@ -80,6 +70,8 @@ elif menu == "💰 Estimasi Biaya":
             return float(s) if s.isdigit() else 0
 
         c_t, c_s = 'Total Harga (Rp)', 'Harga Satuan (Rp)'
+        c_spec = 'Type/ Spesifikasi' # Kolom baru sesuai CSV
+        
         if c_t in df_clean.columns: df_clean[c_t] = df_clean[c_t].apply(cln)
         if c_s in df_clean.columns: df_clean[c_s] = df_clean[c_s].apply(cln)
 
@@ -101,11 +93,22 @@ elif menu == "💰 Estimasi Biaya":
         m2.metric(label_sub, format_idr(df_final[c_t].sum()))
 
         st.markdown("---")
-        target = ['No', 'Kategori', 'Nama Barang', 'Merk/Ukuran', 'Total Pemakaian', 'Satuan', c_s, c_t]
+        
+        # Penambahan kolom c_spec ke dalam list target
+        target = ['No', 'Kategori', 'Nama Barang', 'Merk/Ukuran', c_spec, 'Total Pemakaian', 'Satuan', c_s, c_t]
         show = [c for c in target if c in df_final.columns]
-        st.dataframe(df_final[show], use_container_width=True, hide_index=True,
-                     column_config={c_s: st.column_config.NumberColumn(format="Rp %d"),
-                                    c_t: st.column_config.NumberColumn(format="Rp %d")})
+        
+        st.dataframe(
+            df_final[show], 
+            use_container_width=True, 
+            hide_index=True,
+            column_config={
+                c_s: st.column_config.NumberColumn("Harga Satuan", format="Rp %d"),
+                c_t: st.column_config.NumberColumn("Total Harga", format="Rp %d"),
+                "No": st.column_config.Column(width="small"),
+                c_spec: st.column_config.Column("Type/Spesifikasi", width="medium")
+            }
+        )
 
 # --- MENU 3: DOKUMEN PENTING ---
 elif menu == "📁 Dokumen Penting":
