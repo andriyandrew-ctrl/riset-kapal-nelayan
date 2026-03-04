@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import re
 
 # 1. SETUP IDENTITAS
 SHEET_ID = '1-FhaAsVlrYUnn0tbC-ccwMMZIS7RKZ57lDho5yLBtI8'
@@ -18,6 +19,7 @@ def read_sheet(sheet_name):
 
 st.set_page_config(page_title="R&D Riset Kapal ITS", layout="wide", page_icon="🚢")
 
+# Mapping Nama Bulan & Logika Tahun
 NAMA_BULAN = {1: "Januari", 2: "Februari", 3: "Maret", 4: "April", 5: "Mei", 6: "Juni",
               7: "Juli", 8: "Agustus", 9: "September", 10: "Oktober", 11: "November", 12: "Desember"}
 
@@ -30,22 +32,22 @@ def get_label_periode(bln):
 st.sidebar.title("⚓ R&D Dashboard")
 menu = st.sidebar.radio("Pilih Menu:", ["📸 Koleksi Foto", "💰 Estimasi Biaya", "📁 Dokumen Penting"])
 
-# FUNGSI FORMAT RUPIAH DENGAN TITIK (HASILNYA TEKS)
-def format_idr(val):
+# --- FUNGSI MEMBERSIHKAN & MEMFORMAT RUPIAH ---
+def clean_and_format(val):
     try:
         if pd.isna(val) or val == '': return "Rp 0"
-        # Ambil angka saja
-        s = "".join(filter(str.isdigit, str(val)))
-        if not s: return "Rp 0"
-        return f"Rp {int(s):,.0f}".replace(',', '.')
+        # Hanya ambil angka (membuang titik/koma/Rp yang ada di input)
+        num_str = re.sub(r'\D', '', str(val))
+        if not num_str: return "Rp 0"
+        # Format ke ribuan dengan titik
+        return f"Rp {int(num_str):,.0f}".replace(',', '.')
     except:
         return "Rp 0"
 
-# FUNGSI PEMBERSIH ANGKA MURNI (UNTUK PERHITUNGAN)
-def to_float(val):
+def to_numeric(val):
     try:
-        s = "".join(filter(str.isdigit, str(val)))
-        return float(s) if s else 0.0
+        num_str = re.sub(r'\D', '', str(val))
+        return float(num_str) if num_str else 0.0
     except:
         return 0.0
 
@@ -70,48 +72,38 @@ elif menu == "💰 Estimasi Biaya":
     df_raw = read_sheet('Estimasi Biaya')
     
     if not df_raw.empty:
-        # Filter baris: Hanya yang ada nomornya
+        # Hanya ambil baris yang punya nomor (menghindari baris total di excel)
         df_clean = df_raw[pd.to_numeric(df_raw['No'], errors='coerce').notnull()].copy()
 
         c_s = 'Harga Satuan (Rp)'
         c_t = 'Total Harga (Rp)'
         c_spec = 'Type/ Spesifikasi'
 
-        # 1. HITUNG TOTAL DULU (MENGGUNAKAN ANGKA MURNI)
-        total_proyek = df_clean[c_t].apply(to_float).sum()
-
+        # Filter Kategori
         st.markdown("### 🔍 Filter & Ringkasan")
         kategori_list = ["Semua Kategori"] + sorted(df_clean['Kategori'].unique().tolist())
         pilihan = st.selectbox("Pilih Kategori Barang:", kategori_list)
         
-        df_final = df_clean if pilihan == "Semua Kategori" else df_clean[df_clean['Kategori'] == pilihan]
-        total_sub = df_final[c_t].apply(to_float).sum()
+        df_filtered = df_clean if pilihan == "Semua Kategori" else df_clean[df_clean['Kategori'] == pilihan]
 
-        # Metrik Atas
+        # Kalkulasi Angka Murni
+        grand_total = df_clean[c_t].apply(to_numeric).sum()
+        sub_total = df_filtered[c_t].apply(to_numeric).sum()
+
         m1, m2 = st.columns(2)
-        m1.metric("Grand Total Anggaran", format_idr(total_proyek))
-        m2.metric(f"Total {pilihan}", format_idr(total_sub))
+        m1.metric("Grand Total Anggaran", clean_and_format(grand_total))
+        m2.metric(f"Total {pilihan}", clean_and_format(sub_total))
         st.markdown("---")
         
-        # 2. UBAH KOLOM HARGA MENJADI TEKS BERFORMAT (TITIK RIBUAN) SEBELUM TAMPIL
-        df_display = df_final.copy()
-        df_display[c_s] = df_display[c_s].apply(format_idr)
-        df_display[c_t] = df_display[c_t].apply(format_idr)
+        # Terapkan format titik ribuan ke kolom tabel
+        df_display = df_filtered.copy()
+        df_display[c_s] = df_display[c_s].apply(clean_and_format)
+        df_display[c_t] = df_display[c_t].apply(clean_and_format)
 
         target = ['No', 'Kategori', 'Nama Barang', 'Merk/Ukuran', c_spec, 'Total Pemakaian', 'Satuan', c_s, c_t]
         show = [c for c in target if c in df_display.columns]
         
-        # DISPLAY TABEL (Menggunakan TextColumn agar titik tidak hilang)
-        st.dataframe(
-            df_display[show], 
-            use_container_width=True, 
-            hide_index=True,
-            column_config={
-                c_s: st.column_config.TextColumn("Harga Satuan"),
-                c_t: st.column_config.TextColumn("Total Harga"),
-                c_spec: st.column_config.Column("Type/ Spesifikasi", width="large")
-            }
-        )
+        st.dataframe(df_display[show], use_container_width=True, hide_index=True)
 
 # --- MENU 3: DOKUMEN PENTING ---
 elif menu == "📁 Dokumen Penting":
